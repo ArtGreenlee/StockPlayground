@@ -1,22 +1,19 @@
-# %%
 import alpaca_trade_api as tradeapi
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import pandas as pd
 import datetime
-# API Info for fetching data, portfolio, etc. from Alpaca
-BASE_URL = "https://paper-api.alpaca.markets"
-ALPACA_API_KEY = "PKZOQ4KFK6JBDSDCZ8QW"
-ALPACA_SECRET_KEY = "RnEHRqATzw7ybJ0iZ1dqjTRKonvRTQCshwDnA3jb"
+import os
 
-# Instantiate REST API Connection
-api = tradeapi.REST(key_id=ALPACA_API_KEY, secret_key=ALPACA_SECRET_KEY, 
-                    base_url=BASE_URL, api_version='v2')    
+data = []
+DATA_FOLDER_PATH = "DATA/AAPL"
+for file in os.listdir(DATA_FOLDER_PATH):
+    data.append(pd.read_csv(DATA_FOLDER_PATH + "/" + file))
 
-# %%
 def ROC_SIMULATION(prices, window, ROC_BUY_THRESHOLD, ROC_SELL_THRESHOLD):
-    MA = prices.rolling(window).mean()
+    dataframe = pd.DataFrame(prices)
+    MA = dataframe.rolling(window).mean()
     ROC = np.gradient(MA)
     buy_price = 0
 
@@ -41,7 +38,6 @@ def ROC_SIMULATION(prices, window, ROC_BUY_THRESHOLD, ROC_SELL_THRESHOLD):
     
     return avg_change / num_trades
 
-# %%
 def find_best_parameters(prices):
     max_change = 0
     best_window = 0
@@ -49,10 +45,10 @@ def find_best_parameters(prices):
     best_RST = 0
 
     ROC_MIN = .001
-    ROC_MAX = .05
-    ROC_STEP = .001
+    ROC_MAX = .02
+    ROC_STEP = .002
 
-    for window in range(10, 150):
+    for window in range(50, 100):
         RBT = ROC_MIN
         while RBT < ROC_MAX:
             RBT += ROC_MIN
@@ -68,33 +64,21 @@ def find_best_parameters(prices):
 
     return max_change, best_window, best_RBT, best_RST
 
-# %%
 def train_test(train_window):
-    training_length = train_window
-    start_date = "08/01/23"
-    start_date = datetime.datetime.strptime(start_date, "%m/%d/%y")
-    end_date = start_date + datetime.timedelta(days=training_length)
-    training_date = end_date + datetime.timedelta(days=1)
-    start = str(start_date).split()[0]
-    end = str(end_date).split()[0]
-    training = str(training_date).split()[0]
-    print("Start date: ", start)
-    print("End date: ", end)
-    TRAINING_DATA = api.get_bars("AAPL", tradeapi.rest.TimeFrame.Minute, start, end, adjustment='raw').df
-    TEST_DATA = api.get_bars("AAPL", tradeapi.rest.TimeFrame.Minute, training, training, adjustment='raw').df   
-    training_prices = TRAINING_DATA['close']
-    test_prices = TEST_DATA['close']
+    training_prices = []
+    for i in range(train_window):
+        training_prices.extend(data[i]['close'].values)
+    test_prices = data[train_window]['close'].values
     max_change, best_window, best_RBT, best_RST = find_best_parameters(training_prices)
     print("for train window length: ", train_window, " best parameters are: ", best_window, best_RBT, best_RST)
     test_change = ROC_SIMULATION(test_prices, best_window, best_RBT, best_RST)
+    print("test change: ", test_change)
     return test_change
 
-# %%
 max_test_change = 0
 for train_window in range(0, 100):
     test_change = train_test(train_window)
     if test_change > max_test_change:
         max_test_change = test_change
-        print(max_test_change)
 
 
