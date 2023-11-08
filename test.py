@@ -17,10 +17,6 @@ class Trade:
     sell_price = 0  
     sell_time = ""
 
-
-
-
-
 def ROC_SIMULATION(prices, window, ROC_BUY_THRESHOLD, ROC_SELL_THRESHOLD):
     dataframe = pd.DataFrame(prices)
     MA = np.array(dataframe.rolling(window).mean())
